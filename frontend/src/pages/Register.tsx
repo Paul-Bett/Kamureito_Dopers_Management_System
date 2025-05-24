@@ -1,35 +1,67 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { authService } from '../api/authService';
+import { useNotification } from '../context/NotificationContext';
 import ErrorMessage from '../components/ErrorMessage';
 
-const Register = () => {
+const Register: React.FC = () => {
   const navigate = useNavigate();
+  const { addNotification } = useNotification();
   const [formData, setFormData] = useState({
+    name: '',
     email: '',
-    username: '',
     password: '',
-    confirmPassword: '',
+    confirmPassword: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const validateForm = () => {
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return false;
+    }
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      return false;
+    }
+    return true;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+    if (!validateForm()) {
       return;
     }
 
+    setLoading(true);
+
     try {
-      setLoading(true);
-      await authService.register(formData.email, formData.username, formData.password);
-      navigate('/login', { state: { message: 'Registration successful! Please log in.' } });
+      await authService.register({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password
+      });
+
+      addNotification({
+        type: 'success',
+        title: 'Registration Successful',
+        message: 'Your account has been created. Please log in to continue.',
+        duration: 5000
+      });
+
+      navigate('/login');
     } catch (err) {
       console.error('Registration error:', err);
-      setError('Registration failed. Please try again.');
+      setError('Failed to create account. Please try again.');
+      addNotification({
+        type: 'error',
+        title: 'Registration Failed',
+        message: 'Failed to create account. Please try again.',
+        duration: 5000
+      });
     } finally {
       setLoading(false);
     }
@@ -37,8 +69,11 @@ const Register = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    if (error) setError(null);
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    setError(null);
   };
 
   return (
@@ -61,6 +96,21 @@ const Register = () => {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
+              <label htmlFor="name" className="sr-only">
+                Full Name
+              </label>
+              <input
+                id="name"
+                name="name"
+                type="text"
+                required
+                value={formData.name}
+                onChange={handleChange}
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Full Name"
+              />
+            </div>
+            <div>
               <label htmlFor="email" className="sr-only">
                 Email address
               </label>
@@ -72,24 +122,8 @@ const Register = () => {
                 required
                 value={formData.email}
                 onChange={handleChange}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
-              />
-            </div>
-            <div>
-              <label htmlFor="username" className="sr-only">
-                Username
-              </label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                autoComplete="username"
-                required
-                value={formData.username}
-                onChange={handleChange}
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Username"
+                placeholder="Email address"
               />
             </div>
             <div>
@@ -130,7 +164,7 @@ const Register = () => {
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-400 disabled:cursor-not-allowed"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
               {loading ? 'Creating account...' : 'Create account'}
             </button>

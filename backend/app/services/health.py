@@ -1,14 +1,21 @@
 from typing import List, Optional
-from datetime import date
+from datetime import date, datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
-from app.db.models.health_event import HealthEvent
+from app.db.models.health_event import HealthEvent, EventType
 from app.schemas.health import HealthEventCreate, HealthEventUpdate, HealthEventFilter
 
 
 def create_health_event(db: Session, event_in: HealthEventCreate) -> HealthEvent:
     """Create a new health event record."""
-    db_event = HealthEvent(**event_in.model_dump())
+    db_event = HealthEvent(
+        sheep_id=event_in.sheep_id,
+        event_date=event_in.event_date,
+        event_type=event_in.event_type,
+        details=event_in.details,
+        next_due_date=event_in.next_due_date,
+        attachments=event_in.attachments
+    )
     db.add(db_event)
     db.commit()
     db.refresh(db_event)

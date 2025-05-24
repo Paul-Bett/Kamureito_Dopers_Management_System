@@ -7,6 +7,46 @@ from app.schemas.sheep import SheepCreate, SheepUpdate, SheepFilter
 
 def create_sheep(db: Session, sheep_in: SheepCreate) -> Sheep:
     """Create a new sheep record."""
+    # Check if tag_id already exists
+    existing_sheep = get_sheep(db, sheep_in.tag_id)
+    if existing_sheep:
+        raise ValueError(f"Sheep with tag ID {sheep_in.tag_id} already exists")
+
+    # Check if scrapie_id is unique if provided
+    if sheep_in.scrapie_id:
+        existing = db.query(Sheep).filter(Sheep.scrapie_id == sheep_in.scrapie_id).first()
+        if existing:
+            raise ValueError(f"Sheep with scrapie ID {sheep_in.scrapie_id} already exists")
+
+    # Check if rfid_code is unique if provided
+    if sheep_in.rfid_code:
+        existing = db.query(Sheep).filter(Sheep.rfid_code == sheep_in.rfid_code).first()
+        if existing:
+            raise ValueError(f"Sheep with RFID code {sheep_in.rfid_code} already exists")
+
+    # Check if qr_code is unique if provided
+    if sheep_in.qr_code:
+        existing = db.query(Sheep).filter(Sheep.qr_code == sheep_in.qr_code).first()
+        if existing:
+            raise ValueError(f"Sheep with QR code {sheep_in.qr_code} already exists")
+
+    # Validate sire_id if provided
+    if sheep_in.sire_id:
+        sire = get_sheep(db, sheep_in.sire_id)
+        if not sire:
+            raise ValueError(f"Sire with tag ID {sheep_in.sire_id} not found")
+        if sire.sex != 'male':
+            raise ValueError(f"Sheep with tag ID {sheep_in.sire_id} is not a male")
+
+    # Validate dam_id if provided
+    if sheep_in.dam_id:
+        dam = get_sheep(db, sheep_in.dam_id)
+        if not dam:
+            raise ValueError(f"Dam with tag ID {sheep_in.dam_id} not found")
+        if dam.sex != 'female':
+            raise ValueError(f"Sheep with tag ID {sheep_in.dam_id} is not a female")
+
+    # Create new sheep record
     db_sheep = Sheep(**sheep_in.model_dump())
     db.add(db_sheep)
     db.commit()
@@ -24,11 +64,30 @@ def update_sheep(db: Session, tag_id: str, sheep_in: SheepUpdate) -> Optional[Sh
     db_sheep = get_sheep(db, tag_id)
     if not db_sheep:
         return None
-    
+
+    # Check if scrapie_id is unique if provided
+    if sheep_in.scrapie_id and sheep_in.scrapie_id != db_sheep.scrapie_id:
+        existing = db.query(Sheep).filter(Sheep.scrapie_id == sheep_in.scrapie_id).first()
+        if existing:
+            raise ValueError(f"Sheep with scrapie ID {sheep_in.scrapie_id} already exists")
+
+    # Check if rfid_code is unique if provided
+    if sheep_in.rfid_code and sheep_in.rfid_code != db_sheep.rfid_code:
+        existing = db.query(Sheep).filter(Sheep.rfid_code == sheep_in.rfid_code).first()
+        if existing:
+            raise ValueError(f"Sheep with RFID code {sheep_in.rfid_code} already exists")
+
+    # Check if qr_code is unique if provided
+    if sheep_in.qr_code and sheep_in.qr_code != db_sheep.qr_code:
+        existing = db.query(Sheep).filter(Sheep.qr_code == sheep_in.qr_code).first()
+        if existing:
+            raise ValueError(f"Sheep with QR code {sheep_in.qr_code} already exists")
+
+    # Update fields
     update_data = sheep_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_sheep, field, value)
-    
+
     db.commit()
     db.refresh(db_sheep)
     return db_sheep
@@ -39,7 +98,19 @@ def delete_sheep(db: Session, tag_id: str) -> bool:
     db_sheep = get_sheep(db, tag_id)
     if not db_sheep:
         return False
-    
+
+    # Check if sheep has any relationships that would prevent deletion
+    if db_sheep.sired_offspring or db_sheep.birthed_offspring:
+        raise ValueError("Cannot delete sheep that has offspring records")
+    if db_sheep.health_events:
+        raise ValueError("Cannot delete sheep that has health event records")
+    if db_sheep.birth_records:
+        raise ValueError("Cannot delete sheep that has birth records")
+    if db_sheep.mating_records:
+        raise ValueError("Cannot delete sheep that has mating records")
+    if db_sheep.section_history:
+        raise ValueError("Cannot delete sheep that has section history")
+
     db.delete(db_sheep)
     db.commit()
     return True
@@ -48,7 +119,7 @@ def delete_sheep(db: Session, tag_id: str) -> bool:
 def list_sheep(db: Session, filters: SheepFilter) -> List[Sheep]:
     """List sheep records with optional filtering."""
     query = db.query(Sheep)
-    
+
     if filters.status:
         query = query.filter(Sheep.status == filters.status)
     if filters.sex:
@@ -57,7 +128,7 @@ def list_sheep(db: Session, filters: SheepFilter) -> List[Sheep]:
         query = query.filter(Sheep.current_section == filters.section)
     if filters.breed:
         query = query.filter(Sheep.breed == filters.breed)
-    
+
     return query.all()
 
 

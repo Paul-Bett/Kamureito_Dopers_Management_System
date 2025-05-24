@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../api/authService';
+import { useNotification } from '../context/NotificationContext';
 import ErrorMessage from '../components/ErrorMessage';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { addNotification } = useNotification();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -13,16 +15,19 @@ const Login: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     // Check for success message in location state (e.g., after password reset)
     if (location.state?.message) {
-      setSuccessMessage(location.state.message);
+      addNotification({
+        type: 'success',
+        message: location.state.message,
+        duration: 5000
+      });
       // Clear the message from location state
       window.history.replaceState({}, document.title);
     }
-  }, [location]);
+  }, [location, addNotification]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,10 +49,23 @@ const Login: React.FC = () => {
         sessionStorage.setItem('refresh_token', refreshToken);
       }
 
+      addNotification({
+        type: 'success',
+        title: 'Welcome back!',
+        message: `Successfully logged in as ${user.name}`,
+        duration: 3000
+      });
+
       navigate('/');
     } catch (err) {
       console.error('Login error:', err);
       setError('Invalid email or password');
+      addNotification({
+        type: 'error',
+        title: 'Login Failed',
+        message: 'Invalid email or password. Please try again.',
+        duration: 5000
+      });
     } finally {
       setLoading(false);
     }
@@ -78,20 +96,6 @@ const Login: React.FC = () => {
         </div>
 
         {error && <ErrorMessage message={error} />}
-        {successMessage && (
-          <div className="rounded-md bg-green-50 p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-green-800">{successMessage}</p>
-              </div>
-            </div>
-          </div>
-        )}
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">

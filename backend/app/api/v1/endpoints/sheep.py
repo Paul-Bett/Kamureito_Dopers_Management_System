@@ -27,7 +27,10 @@ def create_new_sheep(
     db: Session = Depends(get_db)
 ):
     """Create a new sheep record."""
-    return create_sheep(db=db, sheep_in=sheep_in)
+    try:
+        return create_sheep(db=db, sheep_in=sheep_in)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/{tag_id}", response_model=SheepResponse)

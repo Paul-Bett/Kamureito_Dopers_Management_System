@@ -2,11 +2,23 @@ import apiClient from './client';
 
 export interface Sheep {
   id: number;
-  name: string;
+  tag_id: string;
+  scrapie_id?: string;
   breed: string;
-  dateOfBirth: string;
-  gender: 'male' | 'female';
-  status: 'active' | 'inactive';
+  sex: 'male' | 'female';
+  date_of_birth: string;
+  purchase_date?: string;
+  acquisition_price?: number;
+  origin_farm?: string;
+  rfid_code?: string;
+  qr_code?: string;
+  status: 'active' | 'sold' | 'deceased';
+  current_section: 'male' | 'general' | 'mating';
+  sale_date?: string;
+  sale_price?: number;
+  death_date?: string;
+  sire_id?: string;
+  dam_id?: string;
   notes?: string;
 }
 

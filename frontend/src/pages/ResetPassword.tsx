@@ -1,28 +1,32 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authService } from '../api/authService';
+import { useNotification } from '../context/NotificationContext';
 import ErrorMessage from '../components/ErrorMessage';
 
 const ResetPassword: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const token = searchParams.get('token');
-
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const { addNotification } = useNotification();
+  const [formData, setFormData] = useState({
+    password: '',
+    confirmPassword: ''
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const token = searchParams.get('token');
 
   const validateForm = () => {
     if (!token) {
       setError('Invalid or missing reset token');
       return false;
     }
-    if (password.length < 8) {
+    if (formData.password.length < 8) {
       setError('Password must be at least 8 characters long');
       return false;
     }
-    if (password !== confirmPassword) {
+    if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return false;
     }
@@ -40,14 +44,37 @@ const ResetPassword: React.FC = () => {
     setLoading(true);
 
     try {
-      await authService.confirmPasswordReset(token, password);
-      navigate('/login', { state: { message: 'Password reset successful. Please log in with your new password.' } });
+      await authService.confirmPasswordReset(token, formData.password);
+      
+      addNotification({
+        type: 'success',
+        title: 'Password Reset Successful',
+        message: 'Your password has been reset. Please log in with your new password.',
+        duration: 5000
+      });
+
+      navigate('/login');
     } catch (err) {
-      console.error('Error resetting password:', err);
-      setError('Failed to reset password. The token may be invalid or expired.');
+      console.error('Password reset error:', err);
+      setError('Failed to reset password. Please try again.');
+      addNotification({
+        type: 'error',
+        title: 'Password Reset Failed',
+        message: 'Failed to reset password. Please try again.',
+        duration: 5000
+      });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    setError(null);
   };
 
   if (!token) {
@@ -59,16 +86,16 @@ const ResetPassword: React.FC = () => {
               Invalid Reset Link
             </h2>
             <p className="mt-2 text-center text-sm text-gray-600">
-              This password reset link is invalid or has expired.
+              The password reset link is invalid or has expired. Please request a new password reset.
             </p>
           </div>
-          <div className="mt-8 text-center">
-            <button
-              onClick={() => navigate('/request-reset')}
+          <div className="text-center">
+            <a
+              href="/request-reset"
               className="font-medium text-blue-600 hover:text-blue-500"
             >
-              Request a new reset link
-            </button>
+              Request new reset link
+            </a>
           </div>
         </div>
       </div>
@@ -80,10 +107,10 @@ const ResetPassword: React.FC = () => {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Reset Your Password
+            Reset your password
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Enter your new password below.
+            Please enter your new password
           </p>
         </div>
 
@@ -101,26 +128,26 @@ const ResetPassword: React.FC = () => {
                 type="password"
                 autoComplete="new-password"
                 required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={formData.password}
+                onChange={handleChange}
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                 placeholder="New Password"
               />
             </div>
             <div>
-              <label htmlFor="confirm-password" className="sr-only">
-                Confirm Password
+              <label htmlFor="confirmPassword" className="sr-only">
+                Confirm New Password
               </label>
               <input
-                id="confirm-password"
-                name="confirm-password"
+                id="confirmPassword"
+                name="confirmPassword"
                 type="password"
                 autoComplete="new-password"
                 required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                value={formData.confirmPassword}
+                onChange={handleChange}
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Confirm Password"
+                placeholder="Confirm New Password"
               />
             </div>
           </div>
