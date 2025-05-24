@@ -1,52 +1,43 @@
-from datetime import date
-from sqlalchemy import Column, String, Date, Enum, ForeignKey, Text, Numeric, Boolean
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, Date, ForeignKey, Enum, Text, Float, Boolean
 from sqlalchemy.orm import relationship
-from app.db.base import Base
-import enum
+from app.db.base_class import Base
 
-
-class BirthType(str, enum.Enum):
+class BirthType(str, Enum):
     SINGLE = "single"
     TWIN = "twin"
     TRIPLET = "triplet"
     QUADRUPLET = "quadruplet"
 
-
-class RearingType(str, enum.Enum):
+class RearingType(str, Enum):
     NATURAL = "natural"
-    FOSTERED = "fostered"
-
+    BOTTLE = "bottle"
+    MIXED = "mixed"
 
 class BirthRecord(Base):
-    # Core information
-    ewe_id = Column(String(20), ForeignKey("sheep.tag_id"), nullable=False)
-    sire_id = Column(String(20), ForeignKey("sheep.tag_id"), nullable=False)
+    __tablename__ = "birth_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ewe_id = Column(String, ForeignKey("sheep.id"), nullable=False)
+    sire_id = Column(String, ForeignKey("sheep.id"), nullable=True)
     date_lambed = Column(Date, nullable=False)
-    
-    # Birth details
     birth_type = Column(Enum(BirthType), nullable=False)
-    rearing_type = Column(Enum(RearingType), default=RearingType.NATURAL, nullable=False)
-    dystocia = Column(Boolean, default=False, nullable=False)
-    
-    # Weaning information
+    rearing_type = Column(Enum(RearingType), nullable=False)
+    dystocia = Column(Boolean, default=False)
     date_weaned = Column(Date, nullable=True)
-    weaning_weight = Column(Numeric(5, 2), nullable=True)  # in kg
+    weaning_weight = Column(Float, nullable=True)
     expected_wean_date = Column(Date, nullable=True)
-    
-    # Lamb details (as JSON in notes)
-    lamb_details = Column(Text, nullable=True)  # JSON string containing lamb IDs, weights, etc.
-    
-    # Mortality tracking
-    mortality_flag = Column(Boolean, default=False, nullable=False)
+    lamb_details = Column(Text, nullable=True)  # JSON string containing lamb details
+    mortality_flag = Column(Boolean, default=False)
     mortality_date = Column(Date, nullable=True)
     mortality_reason = Column(Text, nullable=True)
-    
-    # Comments and notes
     comments = Column(Text, nullable=True)
-    
+    created_at = Column(Date, default=datetime.utcnow)
+    updated_at = Column(Date, default=datetime.utcnow, onupdate=datetime.utcnow)
+
     # Relationships
-    ewe = relationship("Sheep", foreign_keys=[ewe_id], back_populates="birth_records")
-    sire = relationship("Sheep", foreign_keys=[sire_id])
-    
+    ewe = relationship("Sheep", foreign_keys=[ewe_id], back_populates="birth_records_as_ewe")
+    sire = relationship("Sheep", foreign_keys=[sire_id], back_populates="birth_records_as_sire")
+
     def __repr__(self):
         return f"<BirthRecord {self.ewe_id} - {self.date_lambed}>" 

@@ -1,34 +1,29 @@
-from datetime import date
-from sqlalchemy import Column, String, Date, Enum, ForeignKey, Text
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, Date, ForeignKey, Enum, Text
 from sqlalchemy.orm import relationship
-from app.db.base import Base
-import enum
+from app.db.base_class import Base
 
-
-class EventType(str, enum.Enum):
+class EventType(str, Enum):
     VACCINATION = "vaccination"
-    DEWORMING = "deworming"
-    VET_VISIT = "vet_visit"
     TREATMENT = "treatment"
     CHECKUP = "checkup"
     OTHER = "other"
 
-
 class HealthEvent(Base):
-    # Core information
-    sheep_id = Column(String(20), ForeignKey("sheep.tag_id"), nullable=False)
+    __tablename__ = "health_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sheep_id = Column(String, ForeignKey("sheep.id"), nullable=False)
     event_date = Column(Date, nullable=False)
     event_type = Column(Enum(EventType), nullable=False)
-    
-    # Event details
-    details = Column(Text, nullable=False)  # JSON string containing treatment details
+    details = Column(Text, nullable=False)
     next_due_date = Column(Date, nullable=True)
-    
-    # Attachments
-    attachments = Column(Text, nullable=True)  # JSON string containing file paths/URLs
-    
+    attachments = Column(Text, nullable=True)  # JSON string of file paths/URLs
+    created_at = Column(Date, default=datetime.utcnow)
+    updated_at = Column(Date, default=datetime.utcnow, onupdate=datetime.utcnow)
+
     # Relationships
     sheep = relationship("Sheep", back_populates="health_events")
-    
+
     def __repr__(self):
         return f"<HealthEvent {self.sheep_id} - {self.event_type} - {self.event_date}>" 
