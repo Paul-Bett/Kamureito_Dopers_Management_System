@@ -1,50 +1,65 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../api/authService';
-import { useAuth } from '../context/AuthContext';
 import ErrorMessage from '../components/ErrorMessage';
 
-const Login = () => {
+const Login: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    rememberMe: false
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check for success message in location state (e.g., after registration)
-    const message = location.state?.message;
-    if (message) {
-      setSuccessMessage(message);
+    // Check for success message in location state (e.g., after password reset)
+    if (location.state?.message) {
+      setSuccessMessage(location.state.message);
+      // Clear the message from location state
+      window.history.replaceState({}, document.title);
     }
   }, [location]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setLoading(true);
 
     try {
-      setLoading(true);
-      const response = await authService.login(formData.email, formData.password);
-      login(response.access_token, response.user);
+      const { user, token, refreshToken } = await authService.login({
+        email: formData.email,
+        password: formData.password
+      });
+
+      // Store tokens if remember me is checked
+      if (formData.rememberMe) {
+        localStorage.setItem('auth_token', token);
+        localStorage.setItem('refresh_token', refreshToken);
+      } else {
+        sessionStorage.setItem('auth_token', token);
+        sessionStorage.setItem('refresh_token', refreshToken);
+      }
+
       navigate('/');
     } catch (err) {
       console.error('Login error:', err);
-      setError('Invalid email or password. Please try again.');
+      setError('Invalid email or password');
     } finally {
       setLoading(false);
     }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    if (error) setError(null);
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+    setError(null); // Clear error when user starts typing
   };
 
   return (
@@ -64,7 +79,7 @@ const Login = () => {
 
         {error && <ErrorMessage message={error} />}
         {successMessage && (
-          <div className="bg-green-50 border-l-4 border-green-400 p-4">
+          <div className="rounded-md bg-green-50 p-4">
             <div className="flex">
               <div className="flex-shrink-0">
                 <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
@@ -72,7 +87,7 @@ const Login = () => {
                 </svg>
               </div>
               <div className="ml-3">
-                <p className="text-sm text-green-700">{successMessage}</p>
+                <p className="text-sm font-medium text-green-800">{successMessage}</p>
               </div>
             </div>
           </div>
@@ -118,8 +133,10 @@ const Login = () => {
             <div className="flex items-center">
               <input
                 id="remember-me"
-                name="remember-me"
+                name="rememberMe"
                 type="checkbox"
+                checked={formData.rememberMe}
+                onChange={handleChange}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
               <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
@@ -128,7 +145,7 @@ const Login = () => {
             </div>
 
             <div className="text-sm">
-              <Link to="/forgot-password" className="font-medium text-blue-600 hover:text-blue-500">
+              <Link to="/request-reset" className="font-medium text-blue-600 hover:text-blue-500">
                 Forgot your password?
               </Link>
             </div>
@@ -138,7 +155,7 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-400 disabled:cursor-not-allowed"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
