@@ -7,6 +7,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import AddSheep from './pages/AddSheep';
 import RecordHealthEvent from './pages/RecordHealthEvent';
+import HealthEvents from './pages/HealthEvents';
+import EditHealthEvent from './pages/EditHealthEvent';
 import CreateMatingPair from './pages/CreateMatingPair';
 import MatingPairs from './pages/MatingPairs';
 import EditMatingPair from './pages/EditMatingPair';
@@ -63,6 +65,12 @@ const Navigation: React.FC = () => {
                     className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
                   >
                     Add Sheep
+                  </Link>
+                  <Link
+                    to="/health"
+                    className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                  >
+                    Health Events
                   </Link>
                   <Link
                     to="/health/new"
@@ -160,10 +168,26 @@ const App: React.FC = () => {
                     }
                   />
                   <Route
+                    path="/health"
+                    element={
+                      <ProtectedRoute>
+                        <HealthEvents />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
                     path="/health/new"
                     element={
                       <ProtectedRoute>
                         <RecordHealthEvent />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/health/:id/edit"
+                    element={
+                      <ProtectedRoute>
+                        <EditHealthEvent />
                       </ProtectedRoute>
                     }
                   />

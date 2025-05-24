@@ -1,43 +1,46 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { authService } from '../api/authService';
 import { useNotification } from '../context/NotificationContext';
-import ErrorMessage from '../components/ErrorMessage';
+import { authService } from '../api/authService';
 
 const ResetPassword: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { addNotification } = useNotification();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     password: '',
     confirmPassword: ''
   });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const token = searchParams.get('token');
-
-  const validateForm = () => {
-    if (!token) {
-      setError('Invalid or missing reset token');
-      return false;
-    }
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters long');
-      return false;
-    }
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return false;
-    }
-    return true;
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    const token = searchParams.get('token');
 
-    if (!validateForm() || !token) {
+    if (!token) {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Invalid reset token'
+      });
+      navigate('/request-reset');
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Passwords do not match'
+      });
       return;
     }
 
@@ -45,123 +48,76 @@ const ResetPassword: React.FC = () => {
 
     try {
       await authService.confirmPasswordReset(token, formData.password);
-      
       addNotification({
         type: 'success',
-        title: 'Password Reset Successful',
-        message: 'Your password has been reset. Please log in with your new password.',
-        duration: 5000
+        title: 'Success',
+        message: 'Password has been reset successfully'
       });
-
       navigate('/login');
-    } catch (err) {
-      console.error('Password reset error:', err);
-      setError('Failed to reset password. Please try again.');
+    } catch (error) {
       addNotification({
         type: 'error',
-        title: 'Password Reset Failed',
-        message: 'Failed to reset password. Please try again.',
-        duration: 5000
+        title: 'Error',
+        message: 'Failed to reset password'
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    setError(null);
-  };
-
-  if (!token) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
-          <div>
-            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-              Invalid Reset Link
-            </h2>
-            <p className="mt-2 text-center text-sm text-gray-600">
-              The password reset link is invalid or has expired. Please request a new password reset.
-            </p>
-          </div>
-          <div className="text-center">
-            <a
-              href="/request-reset"
-              className="font-medium text-blue-600 hover:text-blue-500"
-            >
-              Request new reset link
-            </a>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Reset your password
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Please enter your new password
-          </p>
+    <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
+      <div className="relative py-3 sm:max-w-xl sm:mx-auto">
+        <div className="relative px-4 py-10 bg-white mx-8 md:mx-0 shadow rounded-3xl sm:p-10">
+          <div className="max-w-md mx-auto">
+            <div className="divide-y divide-gray-200">
+              <div className="py-8 text-base leading-6 space-y-4 text-gray-700 sm:text-lg sm:leading-7">
+                <h2 className="text-2xl font-bold text-gray-900 mb-8">Reset Password</h2>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div>
+                    <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                      New Password
+                    </label>
+                    <input
+                      type="password"
+                      id="password"
+                      name="password"
+                      required
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                      Confirm New Password
+                    </label>
+                    <input
+                      type="password"
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      required
+                      value={formData.confirmPassword}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                    >
+                      {loading ? 'Resetting...' : 'Reset Password'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
         </div>
-
-        {error && <ErrorMessage message={error} />}
-
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="password" className="sr-only">
-                New Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={formData.password}
-                onChange={handleChange}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="New Password"
-              />
-            </div>
-            <div>
-              <label htmlFor="confirmPassword" className="sr-only">
-                Confirm New Password
-              </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Confirm New Password"
-              />
-            </div>
-          </div>
-
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              {loading ? 'Resetting...' : 'Reset Password'}
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   );

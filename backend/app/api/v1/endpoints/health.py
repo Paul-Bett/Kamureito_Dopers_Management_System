@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas.health import (
@@ -26,7 +26,10 @@ def create_new_health_event(
     db: Session = Depends(get_db)
 ):
     """Create a new health event record."""
-    return create_health_event(db=db, event_in=event_in)
+    try:
+        return create_health_event(db=db, event_in=event_in)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/{event_id}", response_model=HealthEventResponse)

@@ -27,13 +27,17 @@ def get_health_event(db: Session, event_id: int) -> Optional[HealthEvent]:
     return db.query(HealthEvent).filter(HealthEvent.id == event_id).first()
 
 
-def update_health_event(db: Session, event_id: int, event_in: HealthEventUpdate) -> Optional[HealthEvent]:
+def update_health_event(
+    db: Session,
+    event_id: int,
+    event_in: HealthEventUpdate
+) -> Optional[HealthEvent]:
     """Update a health event record."""
-    db_event = get_health_event(db, event_id)
+    db_event = get_health_event(db=db, event_id=event_id)
     if not db_event:
         return None
     
-    update_data = event_in.model_dump(exclude_unset=True)
+    update_data = event_in.dict(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_event, field, value)
     
@@ -44,7 +48,7 @@ def update_health_event(db: Session, event_id: int, event_in: HealthEventUpdate)
 
 def delete_health_event(db: Session, event_id: int) -> bool:
     """Delete a health event record."""
-    db_event = get_health_event(db, event_id)
+    db_event = get_health_event(db=db, event_id=event_id)
     if not db_event:
         return False
     
@@ -53,24 +57,30 @@ def delete_health_event(db: Session, event_id: int) -> bool:
     return True
 
 
-def list_health_events(db: Session, filters: HealthEventFilter) -> List[HealthEvent]:
-    """List health event records with optional filtering."""
+def list_health_events(
+    db: Session,
+    filters: HealthEventFilter
+) -> List[HealthEvent]:
+    """List health events with optional filtering."""
     query = db.query(HealthEvent)
     
     if filters.sheep_id:
         query = query.filter(HealthEvent.sheep_id == filters.sheep_id)
+    
     if filters.event_type:
         query = query.filter(HealthEvent.event_type == filters.event_type)
+    
     if filters.start_date:
         query = query.filter(HealthEvent.event_date >= filters.start_date)
+    
     if filters.end_date:
         query = query.filter(HealthEvent.event_date <= filters.end_date)
+    
     if filters.overdue:
+        today = datetime.now().date()
         query = query.filter(
-            and_(
-                HealthEvent.next_due_date.isnot(None),
-                HealthEvent.next_due_date < date.today()
-            )
+            HealthEvent.next_due_date.isnot(None),
+            HealthEvent.next_due_date < today
         )
     
     return query.order_by(HealthEvent.event_date.desc()).all()

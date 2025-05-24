@@ -1,20 +1,50 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useNotification } from '../context/NotificationContext';
-import { healthService, type HealthEventCreate } from '../api/healthService';
+import { healthService, type HealthEvent, type HealthEventUpdate } from '../api/healthService';
 
-const RecordHealthEvent: React.FC = () => {
+const EditHealthEvent: React.FC = () => {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   const { addNotification } = useNotification();
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState<HealthEventCreate>({
-    sheep_id: '',
-    event_date: new Date().toISOString().split('T')[0],
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [event, setEvent] = useState<HealthEvent | null>(null);
+  const [formData, setFormData] = useState<HealthEventUpdate>({
+    event_date: '',
     event_type: 'checkup',
     details: '',
     next_due_date: '',
     attachments: []
   });
+
+  useEffect(() => {
+    const fetchEvent = async () => {
+      try {
+        if (!id) return;
+        const data = await healthService.getHealthEvent(parseInt(id));
+        setEvent(data);
+        setFormData({
+          event_date: data.event_date,
+          event_type: data.event_type,
+          details: data.details,
+          next_due_date: data.next_due_date || '',
+          attachments: []
+        });
+      } catch (error) {
+        addNotification({
+          type: 'error',
+          title: 'Error',
+          message: 'Failed to fetch health event'
+        });
+        navigate('/health');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEvent();
+  }, [id, navigate, addNotification]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -38,26 +68,47 @@ const RecordHealthEvent: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    if (!id) return;
 
+    setSaving(true);
     try {
-      await healthService.createHealthEvent(formData);
+      await healthService.updateHealthEvent(parseInt(id), formData);
       addNotification({
         type: 'success',
         title: 'Success',
-        message: 'Health event recorded successfully'
+        message: 'Health event updated successfully'
       });
       navigate('/health');
     } catch (error) {
       addNotification({
         type: 'error',
         title: 'Error',
-        message: 'Failed to record health event'
+        message: 'Failed to update health event'
       });
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
+        <div className="relative py-3 sm:max-w-xl sm:mx-auto">
+          <div className="text-center">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!event) {
+    return (
+      <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
+        <div className="relative py-3 sm:max-w-xl sm:mx-auto">
+          <div className="text-center text-red-600">Health event not found</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
@@ -66,23 +117,8 @@ const RecordHealthEvent: React.FC = () => {
           <div className="max-w-md mx-auto">
             <div className="divide-y divide-gray-200">
               <div className="py-8 text-base leading-6 space-y-4 text-gray-700 sm:text-lg sm:leading-7">
-                <h2 className="text-2xl font-bold text-gray-900 mb-8">Record Health Event</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-8">Edit Health Event</h2>
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  <div>
-                    <label htmlFor="sheep_id" className="block text-sm font-medium text-gray-700">
-                      Sheep ID
-                    </label>
-                    <input
-                      type="text"
-                      id="sheep_id"
-                      name="sheep_id"
-                      required
-                      value={formData.sheep_id}
-                      onChange={handleInputChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    />
-                  </div>
-
                   <div>
                     <label htmlFor="event_date" className="block text-sm font-medium text-gray-700">
                       Event Date
@@ -148,7 +184,7 @@ const RecordHealthEvent: React.FC = () => {
 
                   <div>
                     <label htmlFor="attachments" className="block text-sm font-medium text-gray-700">
-                      Attachments (Optional)
+                      Add Attachments (Optional)
                     </label>
                     <input
                       type="file"
@@ -158,6 +194,16 @@ const RecordHealthEvent: React.FC = () => {
                       onChange={handleFileChange}
                       className="mt-1 block w-full"
                     />
+                    {event.attachments.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-sm text-gray-500">Current attachments:</p>
+                        <ul className="mt-1 text-sm text-gray-600">
+                          {event.attachments.map((attachment, index) => (
+                            <li key={index}>{attachment}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex justify-end space-x-4">
@@ -170,10 +216,10 @@ const RecordHealthEvent: React.FC = () => {
                     </button>
                     <button
                       type="submit"
-                      disabled={loading}
+                      disabled={saving}
                       className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
                     >
-                      {loading ? 'Recording...' : 'Record Event'}
+                      {saving ? 'Saving...' : 'Save Changes'}
                     </button>
                   </div>
                 </form>
@@ -186,4 +232,4 @@ const RecordHealthEvent: React.FC = () => {
   );
 };
 
-export default RecordHealthEvent; 
+export default EditHealthEvent; 
